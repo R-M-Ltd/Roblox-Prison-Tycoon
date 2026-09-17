@@ -1,0 +1,46 @@
+# Roblox Prison Tycoon (Warden Empire)
+
+Luau scripts + Studio setup for a multi-pad owner-claim prison tycoon.
+
+## Fantasy
+You are the warden. Claim a pad, house inmates, unlock cells/facilities, earn cash.
+
+## Studio hierarchy
+```
+ServerStorage
+  TycoonTemplate
+    ClaimPad
+    PlayerSpawn (optional)
+    Buttons/          # Parts with PurchaseId attribute
+    Unlocks/          # Cell1 (free) + Cell2..Kitchen; each cell needs Deposit
+    Droppers/         # Intake_CellN with RequiresUnlock / AimUnlock
+  InmateTemplate      # Model with PrimaryPart
+
+ReplicatedStorage
+  TycoonConfig        # ModuleScript
+  TycoonService       # ModuleScript
+
+ServerScriptService
+  PlayerSetup
+  TycoonAssigner
+  PurchaseHandler
+  InmateDropper
+  InmateCollector
+  CellIncome
+
+Workspace
+  TycoonSpawns/       # Spawn1, Spawn2, ...
+  Tycoons/            # runtime clones
+```
+
+## Install
+1. Create matching ModuleScripts/Scripts in Studio from the `.lua` files in this repo.
+2. Build `TycoonTemplate` and `InmateTemplate` in ServerStorage.
+3. Place `TycoonSpawns` parts spaced apart.
+4. Play: claim a pad, buy Cell2 with $50, watch droppers + deposits pay the owner.
+
+## Config
+See `ReplicatedStorage/TycoonConfig.lua` for prices and income rates.
+
+## GitHub
+https://github.com/R-M-Ltd/Roblox-Prison-Tycoon
