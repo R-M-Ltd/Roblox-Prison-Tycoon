@@ -5,6 +5,7 @@ local ServerStorage = game:GetService("ServerStorage")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
 local TycoonService = require(ReplicatedStorage:WaitForChild("TycoonService"))
+local TycoonVisibility = require(ReplicatedStorage:WaitForChild("TycoonVisibility"))
 
 local template = ServerStorage:WaitForChild("TycoonTemplate")
 local spawnsFolder = workspace:WaitForChild("TycoonSpawns")
@@ -12,68 +13,11 @@ local spawnsFolder = workspace:WaitForChild("TycoonSpawns")
 local padBySpawn = {}
 local spawnByUserId = {}
 
-local function setUnlockVisible(unlockModel, visible)
-	for _, inst in unlockModel:GetDescendants() do
-		if inst:IsA("BasePart") then
-			if visible then
-				inst.Transparency = inst:GetAttribute("OriginalTransparency") or 0
-				local canCollide = inst:GetAttribute("OriginalCanCollide")
-				inst.CanCollide = if canCollide == nil then true else canCollide
-			else
-				if inst:GetAttribute("OriginalTransparency") == nil then
-					inst:SetAttribute("OriginalTransparency", inst.Transparency)
-					inst:SetAttribute("OriginalCanCollide", inst.CanCollide)
-				end
-				inst.Transparency = 1
-				inst.CanCollide = false
-			end
-		end
-	end
-	unlockModel:SetAttribute("Owned", visible == true)
-end
-
-local function setDropperActive(dropper, active)
-	if not dropper:IsA("BasePart") then
-		return
-	end
-	if dropper:GetAttribute("OriginalTransparency") == nil then
-		dropper:SetAttribute("OriginalTransparency", dropper.Transparency)
-		dropper:SetAttribute("OriginalCanCollide", dropper.CanCollide)
-	end
-	if active then
-		dropper.Transparency = dropper:GetAttribute("OriginalTransparency") or 0
-		dropper.CanCollide = dropper:GetAttribute("OriginalCanCollide") == true
-		dropper:SetAttribute("Active", true)
-	else
-		dropper.Transparency = 1
-		dropper.CanCollide = false
-		dropper:SetAttribute("Active", false)
-	end
-end
-
 local function prepareFreshTycoon(tycoon)
 	tycoon:SetAttribute("IsTycoon", true)
 	tycoon:SetAttribute("OwnerUserId", 0)
 
-	local unlocks = tycoon:FindFirstChild("Unlocks")
-	if unlocks then
-		for _, unlock in unlocks:GetChildren() do
-			if unlock.Name == "Cell1" then
-				setUnlockVisible(unlock, true)
-			else
-				setUnlockVisible(unlock, false)
-			end
-		end
-	end
-
-	local droppers = tycoon:FindFirstChild("Droppers")
-	if droppers then
-		for _, dropper in droppers:GetChildren() do
-			local required = dropper:GetAttribute("RequiresUnlock")
-			local on = required == nil or required == "Cell1"
-			setDropperActive(dropper, on)
-		end
-	end
+	TycoonVisibility.applyFreshUnlockState(tycoon)
 
 	local claim = tycoon:FindFirstChild("ClaimPad", true)
 	if claim and claim:IsA("BasePart") then

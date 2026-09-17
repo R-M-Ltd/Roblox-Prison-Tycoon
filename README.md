@@ -19,6 +19,7 @@ ServerStorage
 ReplicatedStorage
   TycoonConfig        # ModuleScript
   TycoonService       # ModuleScript
+  TycoonVisibility    # ModuleScript (shared unlock/dropper helpers)
 
 ServerScriptService
   PlayerSetup
@@ -41,6 +42,8 @@ Workspace
 
 ## Config
 See `ReplicatedStorage/TycoonConfig.lua` for prices and income rates.
+
+Primary cash is the Deposit collector. Passive income defaults to `0` to avoid double-pay.
 
 ## GitHub
 https://github.com/R-M-Ltd/Roblox-Prison-Tycoon

@@ -150,6 +150,10 @@ local function hookTycoon(tycoon)
 			end
 		end
 	end)
+
+	tycoon.Destroying:Connect(function()
+		hooked[tycoon] = nil
+	end)
 end
 
 local tycoonsFolder = TycoonService.getTycoonsFolder()

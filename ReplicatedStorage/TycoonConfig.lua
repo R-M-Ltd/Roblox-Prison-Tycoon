@@ -11,8 +11,11 @@ TycoonConfig.Purchases = {
 	Kitchen = { Cost = 1000, Unlock = "Kitchen" },
 }
 
+-- Primary income: Deposit collector
 TycoonConfig.CashPerInmate = 10
-TycoonConfig.IncomePerOwnedUnlock = 5
+
+-- Passive trickle (0 = off; collector is the main cash path to avoid double-income)
+TycoonConfig.IncomePerOwnedUnlock = 0
 TycoonConfig.IncomeInterval = 1
 
 return TycoonConfig

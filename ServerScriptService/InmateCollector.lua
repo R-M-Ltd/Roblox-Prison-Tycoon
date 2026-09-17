@@ -1,12 +1,13 @@
 -- Script: ServerScriptService.InmateCollector
--- Inmate touches Deposit → CashPerInmate to pad owner; inmate despawns.
+-- Inmate touches matching Deposit → CashPerInmate to pad owner; inmate despawns.
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
 local Config = require(ReplicatedStorage:WaitForChild("TycoonConfig"))
 local TycoonService = require(ReplicatedStorage:WaitForChild("TycoonService"))
 
-local DEBOUNCE = {}
+local DEBOUNCE = {} -- [inmate] = true
+local hookedDeposits = {} -- [deposit] = true
 
 local function getInmateModel(hit)
 	local current = hit
@@ -22,9 +23,23 @@ local function getInmateModel(hit)
 	return nil
 end
 
+local function findUnlockModel(deposit)
+	local cell = deposit:FindFirstAncestorWhichIsA("Model") or deposit.Parent
+	while cell and cell.Parent and cell.Parent.Name ~= "Unlocks" do
+		cell = cell.Parent
+	end
+	if cell and cell.Parent and cell.Parent.Name == "Unlocks" then
+		return cell
+	end
+	return nil
+end
+
 local function payOwner(tycoon, amount)
 	local ownerId = tycoon and tycoon:GetAttribute("OwnerUserId")
-	local owner = ownerId and Players:GetPlayerByUserId(ownerId)
+	if typeof(ownerId) ~= "number" or ownerId == 0 then
+		return
+	end
+	local owner = Players:GetPlayerByUserId(ownerId)
 	if not owner then
 		return
 	end
@@ -50,11 +65,16 @@ local function onDepositTouched(deposit, hit)
 		return
 	end
 
-	local cell = deposit:FindFirstAncestorWhichIsA("Model") or deposit.Parent
-	while cell and cell.Parent and cell.Parent.Name ~= "Unlocks" do
-		cell = cell.Parent
+	local unlock = findUnlockModel(deposit)
+	-- Strict: only collect into owned unlocks
+	if not unlock or unlock:GetAttribute("Owned") ~= true then
+		DEBOUNCE[inmate] = nil
+		return
 	end
-	if cell and cell:GetAttribute("Owned") == false then
+
+	-- Honor dropper aim: inmate must target this unlock (or have no target set)
+	local target = inmate:GetAttribute("TargetUnlock")
+	if typeof(target) == "string" and target ~= "" and target ~= unlock.Name then
 		DEBOUNCE[inmate] = nil
 		return
 	end
@@ -69,23 +89,30 @@ local function hookDeposit(deposit)
 	if not deposit:IsA("BasePart") or deposit.Name ~= "Deposit" then
 		return
 	end
+	if hookedDeposits[deposit] then
+		return
+	end
+	hookedDeposits[deposit] = true
+
 	deposit.Touched:Connect(function(hit)
 		onDepositTouched(deposit, hit)
 	end)
+
+	deposit.Destroying:Connect(function()
+		hookedDeposits[deposit] = nil
+	end)
 end
 
-local function scanUnlocks(unlocks)
-	for _, unlock in unlocks:GetChildren() do
-		local deposit = unlock:FindFirstChild("Deposit", true)
-		if deposit then
-			hookDeposit(deposit)
-		end
-		unlock.DescendantAdded:Connect(function(desc)
-			if desc.Name == "Deposit" and desc:IsA("BasePart") then
-				hookDeposit(desc)
-			end
-		end)
+local function watchUnlock(unlock)
+	local deposit = unlock:FindFirstChild("Deposit", true)
+	if deposit then
+		hookDeposit(deposit)
 	end
+	unlock.DescendantAdded:Connect(function(desc)
+		if desc.Name == "Deposit" and desc:IsA("BasePart") then
+			hookDeposit(desc)
+		end
+	end)
 end
 
 local function hookTycoon(tycoon)
@@ -93,14 +120,11 @@ local function hookTycoon(tycoon)
 	if not unlocks then
 		return
 	end
-	scanUnlocks(unlocks)
-	unlocks.ChildAdded:Connect(function(unlock)
-		task.wait()
-		local deposit = unlock:FindFirstChild("Deposit", true)
-		if deposit then
-			hookDeposit(deposit)
-		end
-	end)
+
+	for _, unlock in unlocks:GetChildren() do
+		watchUnlock(unlock)
+	end
+	unlocks.ChildAdded:Connect(watchUnlock)
 end
 
 local tycoonsFolder = TycoonService.getTycoonsFolder()
