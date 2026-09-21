@@ -7,3 +7,5 @@
 5. Each unlock cell needs a Part named `Deposit` (CanCollide false for testing ok).
 6. Cell1 starts owned/visible; no purchase button for Cell1.
 7. Never edit live `Workspace.Tycoons` clones as source of truth — edit the template.
+
+8. World layer (day-night, zones, lockdown, staff, escapes): see **WORLD_SCRIPTS.md**.

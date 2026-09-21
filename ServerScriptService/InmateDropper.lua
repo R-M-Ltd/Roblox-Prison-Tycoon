@@ -59,6 +59,10 @@ local function spawnFrom(tycoon, dropper)
 	if not isClaimed(tycoon) then
 		return
 	end
+	-- Additive world-layer hook: SecurityWorld sets LockdownActive on the pad
+	if tycoon:GetAttribute("LockdownActive") == true then
+		return
+	end
 	if dropper:GetAttribute("Active") ~= true then
 		return
 	end
