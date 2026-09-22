@@ -7,6 +7,7 @@ local Config = require(ReplicatedStorage:WaitForChild("TycoonConfig"))
 local TycoonService = require(ReplicatedStorage:WaitForChild("TycoonService"))
 
 local DEBOUNCE = {} -- [inmate] = true
+local debounceHooked = {} -- [inmate] = true (Destroying connected once)
 local hookedDeposits = {} -- [deposit] = true
 
 local function getInmateModel(hit)
@@ -58,6 +59,14 @@ local function onDepositTouched(deposit, hit)
 		return
 	end
 	DEBOUNCE[inmate] = true
+	-- Connect Destroying once so Debris/lifetime despawns cannot leak table keys
+	if not debounceHooked[inmate] then
+		debounceHooked[inmate] = true
+		inmate.Destroying:Connect(function()
+			DEBOUNCE[inmate] = nil
+			debounceHooked[inmate] = nil
+		end)
+	end
 
 	local tycoon = TycoonService.getTycoonFromInstance(deposit)
 	if not tycoon then

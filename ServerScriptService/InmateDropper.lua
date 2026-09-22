@@ -5,13 +5,15 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local Debris = game:GetService("Debris")
 
 local TycoonService = require(ReplicatedStorage:WaitForChild("TycoonService"))
+local WorldConfig = require(ReplicatedStorage:WaitForChild("WorldConfig"))
 
 local DEFAULT_INTERVAL = 3
 local MAX_INMATES_PER_TYCOON = 25
 local INMATE_LIFETIME = 60
 
 local template = ServerStorage:WaitForChild("InmateTemplate")
-local hooked = {}
+local hooked = {} -- [tycoon] = true
+local hookedDroppers = {} -- [dropper] = true
 
 local function getOrCreateActiveFolder(tycoon)
 	local folder = tycoon:FindFirstChild("ActiveInmates")
@@ -59,8 +61,8 @@ local function spawnFrom(tycoon, dropper)
 	if not isClaimed(tycoon) then
 		return
 	end
-	-- Additive world-layer hook: SecurityWorld sets LockdownActive on the pad
-	if tycoon:GetAttribute("LockdownActive") == true then
+	-- Honor WorldConfig: only pause when LockdownPausesDroppers is enabled
+	if WorldConfig.LockdownPausesDroppers == true and tycoon:GetAttribute("LockdownActive") == true then
 		return
 	end
 	if dropper:GetAttribute("Active") ~= true then
@@ -116,6 +118,13 @@ local function hookDropper(tycoon, dropper)
 	if not dropper:IsA("BasePart") then
 		return
 	end
+	if hookedDroppers[dropper] then
+		return
+	end
+	hookedDroppers[dropper] = true
+	dropper.Destroying:Connect(function()
+		hookedDroppers[dropper] = nil
+	end)
 	if dropper:GetAttribute("Active") == nil then
 		local required = dropper:GetAttribute("RequiresUnlock")
 		local starter = required == nil or required == "Cell1"

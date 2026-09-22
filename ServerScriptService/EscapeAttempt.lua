@@ -12,15 +12,13 @@ local EscapeAttempt = {}
 local running = false
 
 local function findEscapePoint(tycoon)
+	-- Per-tycoon only: a shared Workspace.EscapePoint would send every pad's
+	-- escapees to one spot and couple multi-pad economy/AI incorrectly.
 	local p = tycoon:FindFirstChild("EscapePoint", true)
 	if p and p:IsA("BasePart") then
 		return p
 	end
-	local world = workspace:FindFirstChild("EscapePoint")
-	if world and world:IsA("BasePart") then
-		return world
-	end
-	local folder = workspace:FindFirstChild("EscapePoints")
+	local folder = tycoon:FindFirstChild("EscapePoints")
 	if folder then
 		for _, child in folder:GetChildren() do
 			if child:IsA("BasePart") then

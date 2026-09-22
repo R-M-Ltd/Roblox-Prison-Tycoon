@@ -53,20 +53,42 @@ function FacilityClock.getFraction()
 	return 0
 end
 
+local function pickDaytimeStartFraction()
+	local startF = WorldConfig.NightStartFraction
+	local endF = WorldConfig.NightEndFraction
+	if typeof(startF) ~= "number" then
+		startF = 0.75
+	end
+	if typeof(endF) ~= "number" then
+		endF = 0.25
+	end
+	if startF > endF then
+		-- Night wraps midnight: day is [endF, startF) — start at midday
+		return (endF + startF) / 2
+	end
+	-- Non-wrapping night: prefer fraction 0 if daytime, else just after night ends
+	if not isNightFraction(0) then
+		return 0
+	end
+	return endF
+end
+
 function FacilityClock.start(stateFolder)
 	if running then
 		return
 	end
 	worldState = stateFolder
 	running = true
-	startedAt = os.clock()
 
 	local dayLen = WorldConfig.DayLengthSeconds
 	if typeof(dayLen) ~= "number" or dayLen <= 0 then
 		dayLen = 180
 	end
 
-	publish(0, isNightFraction(0))
+	-- Offset so boot is daytime when night wraps across 0 (avoids night-at-boot)
+	local startFraction = pickDaytimeStartFraction()
+	startedAt = os.clock() - startFraction * dayLen
+	publish(startFraction, isNightFraction(startFraction))
 
 	task.spawn(function()
 		while running and worldState and worldState.Parent do
