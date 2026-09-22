@@ -59,6 +59,10 @@ local function spawnFrom(tycoon, dropper)
 	if not isClaimed(tycoon) then
 		return
 	end
+	-- Additive world-layer hook: SecurityWorld sets LockdownActive on the pad
+	if tycoon:GetAttribute("LockdownActive") == true then
+		return
+	end
 	if dropper:GetAttribute("Active") ~= true then
 		return
 	end
@@ -124,13 +128,14 @@ local function hookTycoon(tycoon)
 	if hooked[tycoon] then
 		return
 	end
-	hooked[tycoon] = true
 
 	local droppersFolder = tycoon:WaitForChild("Droppers", 10)
 	if not droppersFolder then
 		warn("Tycoon missing Droppers:", tycoon:GetFullName())
 		return
 	end
+
+	hooked[tycoon] = true
 
 	getOrCreateActiveFolder(tycoon)
 

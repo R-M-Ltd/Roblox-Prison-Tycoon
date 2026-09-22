@@ -72,6 +72,13 @@ local function onDepositTouched(deposit, hit)
 		return
 	end
 
+	-- Same pad only: reject inmates from another tycoon's ActiveInmates
+	local inmateTycoon = TycoonService.getTycoonFromInstance(inmate)
+	if inmateTycoon ~= tycoon then
+		DEBOUNCE[inmate] = nil
+		return
+	end
+
 	-- Honor dropper aim: inmate must target this unlock (or have no target set)
 	local target = inmate:GetAttribute("TargetUnlock")
 	if typeof(target) == "string" and target ~= "" and target ~= unlock.Name then

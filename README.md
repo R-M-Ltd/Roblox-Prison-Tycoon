@@ -20,6 +20,7 @@ ReplicatedStorage
   TycoonConfig        # ModuleScript
   TycoonService       # ModuleScript
   TycoonVisibility    # ModuleScript (shared unlock/dropper helpers)
+  WorldConfig         # ModuleScript (world tunables)
 
 ServerScriptService
   PlayerSetup
@@ -28,10 +29,20 @@ ServerScriptService
   InmateDropper
   InmateCollector
   CellIncome
+  WorldBootstrap      # Script — world layer entry
+  FacilityClock       # ModuleScript
+  WorldZones          # ModuleScript
+  SecurityWorld       # ModuleScript
+  InmateWorldAI       # ModuleScript
+  StaffSpawner        # ModuleScript
+  EscapeAttempt       # ModuleScript
+  WorldRemotes        # ModuleScript
 
 Workspace
   TycoonSpawns/       # Spawn1, Spawn2, ...
   Tycoons/            # runtime clones
+  WorldState/         # runtime clock + lockdown attrs (created by bootstrap)
+  WorldZones/         # optional facility zone Parts
 ```
 
 ## Install
@@ -44,6 +55,11 @@ Workspace
 See `ReplicatedStorage/TycoonConfig.lua` for prices and income rates.
 
 Primary cash is the Deposit collector. Passive income defaults to `0` to avoid double-pay.
+
+## World layer
+Additive facility simulation (day-night, zones, lockdown, inmate wander, staff, rare escapes).
+See **[docs/WORLD_SCRIPTS.md](docs/WORLD_SCRIPTS.md)** for Studio checklist and attributes.
+Does not replace the tycoon purchase / deposit loop — hooks via attributes only.
 
 ## GitHub
 https://github.com/R-M-Ltd/Roblox-Prison-Tycoon

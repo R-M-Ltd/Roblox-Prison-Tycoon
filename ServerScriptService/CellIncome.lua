@@ -13,7 +13,7 @@ local function ownedCount(tycoon)
 	end
 	local n = 0
 	for _, unlock in unlocks:GetChildren() do
-		if unlock:GetAttribute("Owned") then
+		if unlock:GetAttribute("Owned") == true then
 			n += 1
 		end
 	end
