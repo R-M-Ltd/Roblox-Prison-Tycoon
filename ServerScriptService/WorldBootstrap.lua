@@ -64,9 +64,14 @@ local function ensureOptionalWorkspaceHooks()
 	-- Do not create GuardSpawns / EscapePoints automatically — docs describe them.
 end
 
+local worldState = ensureWorldState()
+if worldState:GetAttribute("WorldBootstrapped") == true then
+	-- Attribute may be persisted in a saved place file; module start()s are idempotent.
+	warn("[WorldBootstrap] WorldBootstrapped already true — re-calling idempotent starts.")
+end
+
 print("[WorldBootstrap] Starting world layer…")
 
-local worldState = ensureWorldState()
 ensureRemotesFolder()
 ensureOptionalWorkspaceHooks()
 

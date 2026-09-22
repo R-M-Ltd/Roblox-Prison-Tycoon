@@ -128,13 +128,14 @@ local function hookTycoon(tycoon)
 	if hooked[tycoon] then
 		return
 	end
-	hooked[tycoon] = true
 
 	local droppersFolder = tycoon:WaitForChild("Droppers", 10)
 	if not droppersFolder then
 		warn("Tycoon missing Droppers:", tycoon:GetFullName())
 		return
 	end
+
+	hooked[tycoon] = true
 
 	getOrCreateActiveFolder(tycoon)
 

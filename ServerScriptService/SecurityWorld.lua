@@ -10,6 +10,7 @@ local SecurityWorld = {}
 local lockdownUntil = {} -- [tycoon] = os.clock deadline
 local cooldownUntil = {} -- [tycoon] = os.clock
 local bindable = nil
+local started = false
 
 local function ensureBindable()
 	if bindable and bindable.Parent then
@@ -59,8 +60,13 @@ function SecurityWorld.endLockdown(tycoon)
 	if not tycoon or not tycoon.Parent then
 		return
 	end
+	local wasActive = lockdownUntil[tycoon] ~= nil or tycoon:GetAttribute("LockdownActive") == true
 	lockdownUntil[tycoon] = nil
 	setLockdownAttributes(tycoon, false, 0)
+	-- Always start cooldown when leaving an active lockdown (tick, delay, or remote end)
+	if wasActive then
+		cooldownUntil[tycoon] = os.clock() + (WorldConfig.LockdownCooldown or 15)
+	end
 	local ev = ensureBindable()
 	ev:Fire(tycoon, false)
 end
@@ -70,6 +76,9 @@ function SecurityWorld.startLockdown(tycoon, duration)
 		return false, "missing_tycoon"
 	end
 	local now = os.clock()
+	if SecurityWorld.isLockdown(tycoon) then
+		return false, "already_active"
+	end
 	local cd = cooldownUntil[tycoon]
 	if cd and now < cd then
 		return false, "cooldown"
@@ -88,7 +97,6 @@ function SecurityWorld.startLockdown(tycoon, duration)
 	task.delay(dur, function()
 		if lockdownUntil[tycoon] and os.clock() >= lockdownUntil[tycoon] - 0.05 then
 			SecurityWorld.endLockdown(tycoon)
-			cooldownUntil[tycoon] = os.clock() + (WorldConfig.LockdownCooldown or 15)
 		end
 	end)
 
@@ -96,11 +104,15 @@ function SecurityWorld.startLockdown(tycoon, duration)
 end
 
 function SecurityWorld.start()
+	if started then
+		return
+	end
+	started = true
 	ensureBindable()
 
 	-- Tick remaining attribute for UI / debugging
 	task.spawn(function()
-		while true do
+		while started do
 			task.wait(1)
 			local now = os.clock()
 			for tycoon, deadline in pairs(lockdownUntil) do

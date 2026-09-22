@@ -9,6 +9,7 @@ local TycoonService = require(ReplicatedStorage:WaitForChild("TycoonService"))
 local StaffSpawner = {}
 local hooked = {}
 local warnedNoTemplate = false
+local started = false
 
 local function getGuardTemplate()
 	local t = ServerStorage:FindFirstChild("GuardTemplate")
@@ -36,15 +37,8 @@ local function findSpawns(tycoon)
 			end
 		end
 	end
-	-- Workspace-level shared spawns
-	local worldGuards = workspace:FindFirstChild("GuardSpawns")
-	if worldGuards then
-		for _, child in worldGuards:GetChildren() do
-			if child:IsA("BasePart") then
-				table.insert(spawns, child)
-			end
-		end
-	end
+	-- Intentionally NOT using Workspace.GuardSpawns here: shared world spawns
+	-- would be claimed by every pad and stack duplicate guards at one spot.
 	return spawns
 end
 
@@ -198,6 +192,10 @@ local function hookTycoon(tycoon)
 end
 
 function StaffSpawner.start()
+	if started then
+		return
+	end
+	started = true
 	local folder = TycoonService.getTycoonsFolder()
 	for _, tycoon in folder:GetChildren() do
 		hookTycoon(tycoon)

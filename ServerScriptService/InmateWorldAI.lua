@@ -91,6 +91,10 @@ local function stepTycoon(tycoon)
 		if not root then
 			continue
 		end
+		-- Do not overwrite dropper delivery velocity toward Deposit
+		if root.AssemblyLinearVelocity.Magnitude > speed * 1.25 then
+			continue
+		end
 		local target = pickTarget(inmate, tycoon)
 		if target then
 			inmate:SetAttribute("AIState", "Wander")

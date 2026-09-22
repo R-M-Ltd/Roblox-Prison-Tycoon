@@ -11,6 +11,8 @@ local WorldRemotes = {}
 
 local DEBOUNCE = {} -- [userId] = true
 local DEBOUNCE_TIME = 1
+local started = false
+local hookedLockdownButtons = {} -- [part] = true
 
 local function getRemotesFolder()
 	local name = WorldConfig.RemotesFolderName or "WorldRemotes"
@@ -38,6 +40,11 @@ local function ownerTycoon(player)
 end
 
 function WorldRemotes.start()
+	if started then
+		return
+	end
+	started = true
+
 	local folder = getRemotesFolder()
 	local requestLockdown = ensureRemote(folder, "RequestLockdown")
 	local requestEndLockdown = ensureRemote(folder, "RequestEndLockdown")
@@ -107,6 +114,13 @@ function WorldRemotes.start()
 		if part:GetAttribute("LockdownButton") ~= true then
 			return
 		end
+		if hookedLockdownButtons[part] then
+			return
+		end
+		hookedLockdownButtons[part] = true
+		part.Destroying:Connect(function()
+			hookedLockdownButtons[part] = nil
+		end)
 		part.Touched:Connect(function(hit)
 			local character = hit.Parent
 			local player = Players:GetPlayerFromCharacter(character)

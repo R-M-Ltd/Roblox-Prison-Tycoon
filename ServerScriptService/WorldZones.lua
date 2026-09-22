@@ -4,12 +4,14 @@ local CollectionService = game:GetService("CollectionService")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
 local WorldConfig = require(ReplicatedStorage:WaitForChild("WorldConfig"))
+local TycoonService = require(ReplicatedStorage:WaitForChild("TycoonService"))
 
 local ZONE_TAG = "WorldZone"
 
 local WorldZones = {}
 local zonesByName = {} -- [name] = { BasePart, ... }
 local warnedMissing = false
+local started = false
 
 local function registerPart(part)
 	if not part:IsA("BasePart") then
@@ -24,6 +26,12 @@ local function registerPart(part)
 		CollectionService:AddTag(part, ZONE_TAG)
 	end
 	zonesByName[zoneName] = zonesByName[zoneName] or {}
+	-- Dedupe: refresh() + tagged scan used to insert the same part twice
+	for _, existing in ipairs(zonesByName[zoneName]) do
+		if existing == part then
+			return
+		end
+	end
 	table.insert(zonesByName[zoneName], part)
 end
 
@@ -34,14 +42,16 @@ local function scanFolder(folder)
 	for _, child in folder:GetDescendants() do
 		if child:IsA("BasePart") then
 			local name = child:GetAttribute("ZoneName") or child.Name
+			local matched = false
 			for _, expected in ipairs(WorldConfig.ZoneNames) do
 				if name == expected or child.Name == expected then
 					registerPart(child)
+					matched = true
 					break
 				end
 			end
 			-- Also register any BasePart that already has ZoneName attribute
-			if child:GetAttribute("ZoneName") then
+			if not matched and child:GetAttribute("ZoneName") then
 				registerPart(child)
 			end
 		end
@@ -49,10 +59,7 @@ local function scanFolder(folder)
 end
 
 local function scanTycoonZones()
-	local tycoons = workspace:FindFirstChild("Tycoons")
-	if not tycoons then
-		return
-	end
+	local tycoons = TycoonService.getTycoonsFolder()
 	for _, tycoon in tycoons:GetChildren() do
 		local zones = tycoon:FindFirstChild("Zones")
 		if zones then
@@ -124,6 +131,10 @@ function WorldZones.refresh()
 end
 
 function WorldZones.start()
+	if started then
+		return
+	end
+	started = true
 	WorldZones.refresh()
 
 	local root = workspace:FindFirstChild("WorldZones")
@@ -135,12 +146,11 @@ function WorldZones.start()
 		end)
 	end
 
-	local tycoons = workspace:FindFirstChild("Tycoons")
-	if tycoons then
-		tycoons.ChildAdded:Connect(function()
-			task.defer(WorldZones.refresh)
-		end)
-	end
+	-- Always ensure Tycoons exists so late pad clones still refresh zones
+	local tycoons = TycoonService.getTycoonsFolder()
+	tycoons.ChildAdded:Connect(function()
+		task.defer(WorldZones.refresh)
+	end)
 end
 
 return WorldZones
