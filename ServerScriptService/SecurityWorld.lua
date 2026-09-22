@@ -2,8 +2,8 @@
 -- Lockdown server API. Sets attributes InmateDropper (and AI) can respect.
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
-local WorldConfig = require(ReplicatedStorage:WaitForChild("WorldConfig"))
-local TycoonService = require(ReplicatedStorage:WaitForChild("TycoonService"))
+local WorldConfig = require(ReplicatedStorage:WaitForChild("WorldConfig", 30))
+local TycoonService = require(ReplicatedStorage:WaitForChild("TycoonService", 30))
 
 local SecurityWorld = {}
 

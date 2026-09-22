@@ -2,7 +2,7 @@
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
-local Config = require(ReplicatedStorage:WaitForChild("TycoonConfig"))
+local Config = require(ReplicatedStorage:WaitForChild("TycoonConfig", 30))
 
 local function setupLeaderstats(player)
 	local leaderstats = Instance.new("Folder")

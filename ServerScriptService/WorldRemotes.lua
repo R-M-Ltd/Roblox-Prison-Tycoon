@@ -3,9 +3,9 @@
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
-local WorldConfig = require(ReplicatedStorage:WaitForChild("WorldConfig"))
-local TycoonService = require(ReplicatedStorage:WaitForChild("TycoonService"))
-local SecurityWorld = require(script.Parent:WaitForChild("SecurityWorld"))
+local WorldConfig = require(ReplicatedStorage:WaitForChild("WorldConfig", 30))
+local TycoonService = require(ReplicatedStorage:WaitForChild("TycoonService", 30))
+local SecurityWorld = require(script.Parent:WaitForChild("SecurityWorld", 30))
 
 local WorldRemotes = {}
 

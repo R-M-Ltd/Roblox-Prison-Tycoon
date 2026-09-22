@@ -3,7 +3,7 @@
 local Lighting = game:GetService("Lighting")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
-local WorldConfig = require(ReplicatedStorage:WaitForChild("WorldConfig"))
+local WorldConfig = require(ReplicatedStorage:WaitForChild("WorldConfig", 30))
 
 local FacilityClock = {}
 
@@ -27,9 +27,12 @@ local function publish(fraction, night)
 	end
 	worldState:SetAttribute("TimeOfDayFraction", fraction)
 	worldState:SetAttribute("IsNight", night)
-	-- Roblox Lighting.ClockTime is 0–24 hours
-	Lighting.ClockTime = fraction * 24
-	worldState:SetAttribute("ClockTime", Lighting.ClockTime)
+	local clockHours = fraction * 24
+	-- Optional: skip Lighting writes when another system owns day/night
+	if WorldConfig.FacilityClockControlsLighting ~= false then
+		Lighting.ClockTime = clockHours
+	end
+	worldState:SetAttribute("ClockTime", clockHours)
 end
 
 function FacilityClock.getWorldState()

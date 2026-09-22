@@ -4,9 +4,9 @@ local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local CollectionService = game:GetService("CollectionService")
 
-local Config = require(ReplicatedStorage:WaitForChild("TycoonConfig"))
-local TycoonService = require(ReplicatedStorage:WaitForChild("TycoonService"))
-local TycoonVisibility = require(ReplicatedStorage:WaitForChild("TycoonVisibility"))
+local Config = require(ReplicatedStorage:WaitForChild("TycoonConfig", 30))
+local TycoonService = require(ReplicatedStorage:WaitForChild("TycoonService", 30))
+local TycoonVisibility = require(ReplicatedStorage:WaitForChild("TycoonVisibility", 30))
 
 local DEBOUNCE_TIME = 0.5
 local debounce = {}

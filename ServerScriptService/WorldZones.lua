@@ -3,8 +3,10 @@
 local CollectionService = game:GetService("CollectionService")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
-local WorldConfig = require(ReplicatedStorage:WaitForChild("WorldConfig"))
-local TycoonService = require(ReplicatedStorage:WaitForChild("TycoonService"))
+local WorldConfig = require(ReplicatedStorage:WaitForChild("WorldConfig", 30))
+local TycoonService = require(ReplicatedStorage:WaitForChild("TycoonService", 30))
+local _defaultAssetsModule = ReplicatedStorage:WaitForChild("DefaultAssets", 30)
+local DefaultAssets = _defaultAssetsModule and require(_defaultAssetsModule) or nil
 
 local ZONE_TAG = "WorldZone"
 
@@ -102,6 +104,9 @@ end
 
 function WorldZones.refresh()
 	table.clear(zonesByName)
+	if DefaultAssets then
+		DefaultAssets.ensureWorldZones()
+	end
 	local root = workspace:FindFirstChild("WorldZones")
 	if root then
 		scanFolder(root)
@@ -122,9 +127,7 @@ function WorldZones.refresh()
 	if count == 0 and not warnedMissing then
 		warnedMissing = true
 		warn(
-			"[WorldZones] No zone parts found. Create Workspace.WorldZones with Parts named "
-				.. table.concat(WorldConfig.ZoneNames, ", ")
-				.. " (or set ZoneName attribute / WorldZone tag). AI wander will no-op."
+			"[WorldZones] No zone parts found after DefaultAssets.ensureWorldZones() — AI wander will no-op."
 		)
 	end
 	return count

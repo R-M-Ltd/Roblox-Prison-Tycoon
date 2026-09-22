@@ -3,10 +3,12 @@
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local Debris = game:GetService("Debris")
 
-local WorldConfig = require(ReplicatedStorage:WaitForChild("WorldConfig"))
-local TycoonService = require(ReplicatedStorage:WaitForChild("TycoonService"))
-local FacilityClock = require(script.Parent:WaitForChild("FacilityClock"))
-local SecurityWorld = require(script.Parent:WaitForChild("SecurityWorld"))
+local WorldConfig = require(ReplicatedStorage:WaitForChild("WorldConfig", 30))
+local TycoonService = require(ReplicatedStorage:WaitForChild("TycoonService", 30))
+local _defaultAssetsModule = ReplicatedStorage:WaitForChild("DefaultAssets", 30)
+local DefaultAssets = _defaultAssetsModule and require(_defaultAssetsModule) or nil
+local FacilityClock = require(script.Parent:WaitForChild("FacilityClock", 30))
+local SecurityWorld = require(script.Parent:WaitForChild("SecurityWorld", 30))
 
 local EscapeAttempt = {}
 local running = false
@@ -14,6 +16,9 @@ local running = false
 local function findEscapePoint(tycoon)
 	-- Per-tycoon only: a shared Workspace.EscapePoint would send every pad's
 	-- escapees to one spot and couple multi-pad economy/AI incorrectly.
+	if DefaultAssets then
+		DefaultAssets.ensurePadParts(tycoon)
+	end
 	local p = tycoon:FindFirstChild("EscapePoint", true)
 	if p and p:IsA("BasePart") then
 		return p

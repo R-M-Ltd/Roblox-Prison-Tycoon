@@ -3,8 +3,8 @@
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
-local TycoonService = require(ReplicatedStorage:WaitForChild("TycoonService"))
-local Config = require(ReplicatedStorage:WaitForChild("TycoonConfig"))
+local TycoonService = require(ReplicatedStorage:WaitForChild("TycoonService", 30))
+local Config = require(ReplicatedStorage:WaitForChild("TycoonConfig", 30))
 
 local function ownedCount(tycoon)
 	local unlocks = tycoon:FindFirstChild("Unlocks")

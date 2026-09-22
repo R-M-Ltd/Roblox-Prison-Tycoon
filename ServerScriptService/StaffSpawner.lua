@@ -3,12 +3,13 @@
 local ServerStorage = game:GetService("ServerStorage")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
-local WorldConfig = require(ReplicatedStorage:WaitForChild("WorldConfig"))
-local TycoonService = require(ReplicatedStorage:WaitForChild("TycoonService"))
+local WorldConfig = require(ReplicatedStorage:WaitForChild("WorldConfig", 30))
+local TycoonService = require(ReplicatedStorage:WaitForChild("TycoonService", 30))
+local _defaultAssetsModule = ReplicatedStorage:WaitForChild("DefaultAssets", 30)
+local DefaultAssets = _defaultAssetsModule and require(_defaultAssetsModule) or nil
 
 local StaffSpawner = {}
 local hooked = {}
-local warnedNoTemplate = false
 local started = false
 
 local function getGuardTemplate()
@@ -16,14 +17,20 @@ local function getGuardTemplate()
 	if t then
 		return t
 	end
-	if not warnedNoTemplate then
-		warnedNoTemplate = true
-		warn("[StaffSpawner] ServerStorage.GuardTemplate missing — staff spawn no-op until added.")
+	if DefaultAssets then
+		DefaultAssets.ensureGuardTemplate()
+		t = ServerStorage:FindFirstChild("GuardTemplate")
 	end
-	return nil
+	if not t then
+		warn("[StaffSpawner] ServerStorage.GuardTemplate missing after DefaultAssets.")
+	end
+	return t
 end
 
 local function findSpawns(tycoon)
+	if DefaultAssets then
+		DefaultAssets.ensurePadParts(tycoon)
+	end
 	local spawns = {}
 	local named = tycoon:FindFirstChild("GuardSpawn", true)
 	if named and named:IsA("BasePart") then
@@ -151,14 +158,9 @@ local function populate(tycoon)
 
 	local spawns = findSpawns(tycoon)
 	if #spawns == 0 then
-		-- Soft warn once per tycoon via attribute
 		if tycoon:GetAttribute("_StaffSpawnWarned") ~= true then
 			tycoon:SetAttribute("_StaffSpawnWarned", true)
-			warn(
-				"[StaffSpawner] No GuardSpawn on",
-				tycoon.Name,
-				"— add Part GuardSpawn or folder GuardSpawns. Skipping."
-			)
+			warn("[StaffSpawner] No GuardSpawn on", tycoon.Name, "— skipping.")
 		end
 		return
 	end

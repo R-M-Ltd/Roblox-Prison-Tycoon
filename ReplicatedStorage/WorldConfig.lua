@@ -5,6 +5,10 @@ local WorldConfig = {}
 -- Full day-night cycle length in real seconds
 WorldConfig.DayLengthSeconds = 180
 
+-- When true (default), FacilityClock writes Lighting.ClockTime each tick.
+-- Set false if another lighting / atmosphere script owns the sky clock.
+WorldConfig.FacilityClockControlsLighting = true
+
 -- Fraction of cycle that counts as night [0, 1). Night wraps across midnight.
 -- Default: night from 0.75 (dusk) through 0.25 (dawn).
 WorldConfig.NightStartFraction = 0.75

@@ -2,16 +2,18 @@
 -- Start order for the world / facility layer. Creates runtime folders; inits safely.
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
-local WorldConfig = require(ReplicatedStorage:WaitForChild("WorldConfig"))
+local WorldConfig = require(ReplicatedStorage:WaitForChild("WorldConfig", 30))
+local _defaultAssetsModule = ReplicatedStorage:WaitForChild("DefaultAssets", 30)
+local DefaultAssets = _defaultAssetsModule and require(_defaultAssetsModule) or nil
 
 -- ModuleScripts live alongside this Script in ServerScriptService
-local FacilityClock = require(script.Parent:WaitForChild("FacilityClock"))
-local WorldZones = require(script.Parent:WaitForChild("WorldZones"))
-local SecurityWorld = require(script.Parent:WaitForChild("SecurityWorld"))
-local InmateWorldAI = require(script.Parent:WaitForChild("InmateWorldAI"))
-local StaffSpawner = require(script.Parent:WaitForChild("StaffSpawner"))
-local EscapeAttempt = require(script.Parent:WaitForChild("EscapeAttempt"))
-local WorldRemotes = require(script.Parent:WaitForChild("WorldRemotes"))
+local FacilityClock = require(script.Parent:WaitForChild("FacilityClock", 30))
+local WorldZones = require(script.Parent:WaitForChild("WorldZones", 30))
+local SecurityWorld = require(script.Parent:WaitForChild("SecurityWorld", 30))
+local InmateWorldAI = require(script.Parent:WaitForChild("InmateWorldAI", 30))
+local StaffSpawner = require(script.Parent:WaitForChild("StaffSpawner", 30))
+local EscapeAttempt = require(script.Parent:WaitForChild("EscapeAttempt", 30))
+local WorldRemotes = require(script.Parent:WaitForChild("WorldRemotes", 30))
 
 local function ensureFolder(parent, name)
 	local f = parent:FindFirstChild(name)
@@ -58,10 +60,13 @@ local function ensureRemotesFolder()
 	return ensureFolder(ReplicatedStorage, name)
 end
 
--- Optional empty Studio hooks so the place has discoverable names
 local function ensureOptionalWorkspaceHooks()
-	ensureFolder(workspace, "WorldZones")
-	-- Do not create GuardSpawns / EscapePoints automatically — docs describe them.
+	-- Prefer DefaultAssets (creates zone Parts if empty); folder-only fallback otherwise
+	if DefaultAssets then
+		DefaultAssets.ensureWorld()
+	else
+		ensureFolder(workspace, "WorldZones")
+	end
 end
 
 local worldState = ensureWorldState()
@@ -73,7 +78,7 @@ end
 print("[WorldBootstrap] Starting world layer…")
 
 ensureRemotesFolder()
-ensureOptionalWorkspaceHooks()
+ensureOptionalWorkspaceHooks() -- includes DefaultAssets.ensureWorld() when available
 
 -- Start order: clock → zones → security → remotes → AI → staff → escape
 FacilityClock.start(worldState)

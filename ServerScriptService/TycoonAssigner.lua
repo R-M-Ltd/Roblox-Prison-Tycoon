@@ -4,11 +4,35 @@ local Players = game:GetService("Players")
 local ServerStorage = game:GetService("ServerStorage")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
-local TycoonService = require(ReplicatedStorage:WaitForChild("TycoonService"))
-local TycoonVisibility = require(ReplicatedStorage:WaitForChild("TycoonVisibility"))
+local TycoonService = require(ReplicatedStorage:WaitForChild("TycoonService", 30))
+local TycoonVisibility = require(ReplicatedStorage:WaitForChild("TycoonVisibility", 30))
+local _defaultAssetsModule = ReplicatedStorage:WaitForChild("DefaultAssets", 30)
+local DefaultAssets = _defaultAssetsModule and require(_defaultAssetsModule)
+if not DefaultAssets then
+	error("[TycoonAssigner] DefaultAssets module required")
+end
 
-local template = ServerStorage:WaitForChild("TycoonTemplate")
-local spawnsFolder = workspace:WaitForChild("TycoonSpawns")
+DefaultAssets.ensureAll()
+
+local template = ServerStorage:FindFirstChild("TycoonTemplate")
+	or ServerStorage:WaitForChild("TycoonTemplate", 5)
+if not template then
+	DefaultAssets.ensureTycoonTemplate()
+	template = ServerStorage:WaitForChild("TycoonTemplate", 5)
+end
+if not template then
+	error("[TycoonAssigner] TycoonTemplate missing even after DefaultAssets")
+end
+
+local spawnsFolder = workspace:FindFirstChild("TycoonSpawns")
+	or workspace:WaitForChild("TycoonSpawns", 5)
+if not spawnsFolder then
+	DefaultAssets.ensureTycoonSpawns()
+	spawnsFolder = workspace:WaitForChild("TycoonSpawns", 5)
+end
+if not spawnsFolder then
+	error("[TycoonAssigner] TycoonSpawns missing even after DefaultAssets")
+end
 
 local padBySpawn = {}
 local spawnByUserId = {}
@@ -17,6 +41,7 @@ local function prepareFreshTycoon(tycoon)
 	tycoon:SetAttribute("IsTycoon", true)
 	tycoon:SetAttribute("OwnerUserId", 0)
 
+	DefaultAssets.ensurePadParts(tycoon)
 	TycoonVisibility.applyFreshUnlockState(tycoon)
 
 	local claim = tycoon:FindFirstChild("ClaimPad", true)

@@ -4,14 +4,28 @@ local ServerStorage = game:GetService("ServerStorage")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local Debris = game:GetService("Debris")
 
-local TycoonService = require(ReplicatedStorage:WaitForChild("TycoonService"))
-local WorldConfig = require(ReplicatedStorage:WaitForChild("WorldConfig"))
+local TycoonService = require(ReplicatedStorage:WaitForChild("TycoonService", 30))
+local WorldConfig = require(ReplicatedStorage:WaitForChild("WorldConfig", 30))
+local _defaultAssetsModule = ReplicatedStorage:WaitForChild("DefaultAssets", 30)
+local DefaultAssets = _defaultAssetsModule and require(_defaultAssetsModule)
+if not DefaultAssets then
+	error("[InmateDropper] DefaultAssets module required")
+end
 
 local DEFAULT_INTERVAL = 3
 local MAX_INMATES_PER_TYCOON = 25
 local INMATE_LIFETIME = 60
 
-local template = ServerStorage:WaitForChild("InmateTemplate")
+DefaultAssets.ensureInmateTemplate()
+local template = ServerStorage:FindFirstChild("InmateTemplate")
+	or ServerStorage:WaitForChild("InmateTemplate", 5)
+if not template then
+	DefaultAssets.ensureInmateTemplate()
+	template = ServerStorage:WaitForChild("InmateTemplate", 5)
+end
+if not template then
+	error("[InmateDropper] InmateTemplate missing even after DefaultAssets")
+end
 local hooked = {} -- [tycoon] = true
 local hookedDroppers = {} -- [dropper] = true
 
