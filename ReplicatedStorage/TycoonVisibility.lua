@@ -5,15 +5,17 @@ local TycoonVisibility = {}
 function TycoonVisibility.setUnlockVisible(unlockModel, visible)
 	for _, inst in unlockModel:GetDescendants() do
 		if inst:IsA("BasePart") then
+			-- Capture originals before any show/hide so starter unlocks (Cell1)
+			-- keep intentional Deposit Transparency/CanCollide (e.g. invisible sensor).
+			if inst:GetAttribute("OriginalTransparency") == nil then
+				inst:SetAttribute("OriginalTransparency", inst.Transparency)
+				inst:SetAttribute("OriginalCanCollide", inst.CanCollide)
+			end
 			if visible then
 				inst.Transparency = inst:GetAttribute("OriginalTransparency") or 0
 				local canCollide = inst:GetAttribute("OriginalCanCollide")
 				inst.CanCollide = if canCollide == nil then true else canCollide
 			else
-				if inst:GetAttribute("OriginalTransparency") == nil then
-					inst:SetAttribute("OriginalTransparency", inst.Transparency)
-					inst:SetAttribute("OriginalCanCollide", inst.CanCollide)
-				end
 				inst.Transparency = 1
 				inst.CanCollide = false
 			end

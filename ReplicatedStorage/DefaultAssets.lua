@@ -100,8 +100,10 @@ local function ensureUnlockCell(unlocks, name, offset)
 			Color = Color3.fromRGB(0, 255, 100),
 			Parent = cell,
 		})
+		deposit.CanTouch = true
 	else
 		deposit.CanCollide = false
+		deposit.CanTouch = true
 		if deposit.Transparency < 1 then
 			deposit.Transparency = 1
 		end
@@ -273,46 +275,43 @@ function DefaultAssets.ensureGuardTemplate()
 	return model
 end
 
-function DefaultAssets.ensureTycoonTemplate()
-	local existing = ServerStorage:FindFirstChild("TycoonTemplate")
-	if existing then
-		-- Enrich studio templates that only lack staff/escape hooks
-		DefaultAssets.ensurePadParts(existing)
-		return existing
+-- Fill missing claim / buttons / unlocks / droppers so live scripts can run.
+-- Idempotent: never replaces Studio-authored children that already exist.
+local function ensureTycoonPlayableStructure(model)
+	if not model.PrimaryPart then
+		local floor = model:FindFirstChild("Floor")
+		if not (floor and floor:IsA("BasePart")) then
+			floor = ensureNamedPart(model, "Floor", {
+				Size = Vector3.new(40, 1, 40),
+				CFrame = CFrame.new(0, 0, 0),
+				Color = Color3.fromRGB(70, 70, 75),
+			})
+		end
+		model.PrimaryPart = floor
 	end
 
-	local model = Instance.new("Model")
-	model.Name = "TycoonTemplate"
-	mark(model)
+	local claim = model:FindFirstChild("ClaimPad", true)
+	if not (claim and claim:IsA("BasePart")) then
+		claim = ensureNamedPart(model, "ClaimPad", {
+			Size = Vector3.new(6, 1, 6),
+			CFrame = CFrame.new(0, 1, 16),
+			CanCollide = false,
+			Color = Color3.fromRGB(80, 220, 100),
+		})
+	end
+	if claim:GetAttribute("Claimable") == nil then
+		claim:SetAttribute("Claimable", true)
+	end
 
-	local floor = makePart({
-		Name = "Floor",
-		Size = Vector3.new(40, 1, 40),
-		CFrame = CFrame.new(0, 0, 0),
-		Color = Color3.fromRGB(70, 70, 75),
-		Parent = model,
-	})
-	model.PrimaryPart = floor
-
-	local claim = makePart({
-		Name = "ClaimPad",
-		Size = Vector3.new(6, 1, 6),
-		CFrame = CFrame.new(0, 1, 16),
-		CanCollide = false,
-		Color = Color3.fromRGB(80, 220, 100),
-		Parent = model,
-	})
-	claim:SetAttribute("Claimable", true)
-
-	makePart({
-		Name = "PlayerSpawn",
-		Size = Vector3.new(4, 1, 4),
-		CFrame = CFrame.new(0, 1, 10),
-		CanCollide = false,
-		Transparency = 0.5,
-		Color = Color3.fromRGB(180, 180, 255),
-		Parent = model,
-	})
+	if not model:FindFirstChild("PlayerSpawn", true) then
+		ensureNamedPart(model, "PlayerSpawn", {
+			Size = Vector3.new(4, 1, 4),
+			CFrame = CFrame.new(0, 1, 10),
+			CanCollide = false,
+			Transparency = 0.5,
+			Color = Color3.fromRGB(180, 180, 255),
+		})
+	end
 
 	local buttons = ensureFolder(model, "Buttons")
 	ensurePurchaseButton(buttons, "Cell2", "Cell2", Vector3.new(-8, 1, 8), Color3.fromRGB(255, 220, 60))
@@ -334,7 +333,21 @@ function DefaultAssets.ensureTycoonTemplate()
 
 	ensureFolder(model, "ActiveInmates")
 	DefaultAssets.ensurePadParts(model)
+	return model
+end
 
+function DefaultAssets.ensureTycoonTemplate()
+	local existing = ServerStorage:FindFirstChild("TycoonTemplate")
+	if existing then
+		-- Enrich partial Studio templates (missing attrs/folders/pads) in place
+		ensureTycoonPlayableStructure(existing)
+		return existing
+	end
+
+	local model = Instance.new("Model")
+	model.Name = "TycoonTemplate"
+	mark(model)
+	ensureTycoonPlayableStructure(model)
 	model.Parent = ServerStorage
 	print("[DefaultAssets] Created ServerStorage.TycoonTemplate (minimal playable pad)")
 	return model

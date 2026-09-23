@@ -95,6 +95,26 @@ local function stepTycoon(tycoon)
 		if root.AssemblyLinearVelocity.Magnitude > speed * 1.25 then
 			continue
 		end
+
+		-- Prefer Deposit for dropper-aimed inmates so wander cannot starve collector
+		local unlockName = inmate:GetAttribute("TargetUnlock")
+		local depositPart = nil
+		if typeof(unlockName) == "string" and unlockName ~= "" then
+			local unlocks = tycoon:FindFirstChild("Unlocks")
+			local cell = unlocks and unlocks:FindFirstChild(unlockName)
+			local dep = cell and cell:FindFirstChild("Deposit", true)
+			if dep and dep:IsA("BasePart") then
+				depositPart = dep
+			end
+		end
+		if depositPart then
+			inmate:SetAttribute("AIState", "Deliver")
+			inmate:SetAttribute("AIZone", unlockName)
+			pushToward(root, depositPart.Position, speed)
+			processed += 1
+			continue
+		end
+
 		local target = pickTarget(inmate, tycoon)
 		if target then
 			inmate:SetAttribute("AIState", "Wander")
