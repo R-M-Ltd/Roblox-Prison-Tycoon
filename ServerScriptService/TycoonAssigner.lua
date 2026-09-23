@@ -50,6 +50,8 @@ local function prepareFreshTycoon(tycoon)
 		claim.CanCollide = false
 		claim:SetAttribute("Claimable", true)
 	end
+	DefaultAssets.ensureClaimBillboard(tycoon)
+	DefaultAssets.setClaimedByDisplay(tycoon, nil)
 
 	local active = tycoon:FindFirstChild("ActiveInmates")
 	if active then
@@ -106,6 +108,7 @@ local function hookClaimPad(tycoon, spawnPart)
 		spawnByUserId[player.UserId] = spawnPart
 		claim.Transparency = 1
 		claim:SetAttribute("Claimable", false)
+		DefaultAssets.setClaimedByDisplay(tycoon, player.DisplayName or player.Name)
 
 		local playerSpawn = tycoon:FindFirstChild("PlayerSpawn", true)
 		local character = player.Character

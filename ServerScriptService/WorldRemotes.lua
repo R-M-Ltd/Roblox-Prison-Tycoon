@@ -91,6 +91,15 @@ function WorldRemotes.start()
 		if typeof(player) ~= "Instance" or not player:IsA("Player") then
 			return
 		end
+		local userId = player.UserId
+		if DEBOUNCE[userId] then
+			return
+		end
+		DEBOUNCE[userId] = true
+		task.delay(DEBOUNCE_TIME, function()
+			DEBOUNCE[userId] = nil
+		end)
+
 		local tycoon = ownerTycoon(player)
 		if not tycoon then
 			return

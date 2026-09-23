@@ -1,18 +1,49 @@
 -- ModuleScript: ReplicatedStorage.DefaultAssets
 -- Idempotent Studio fallbacks so a bare place still boots the core loop.
+-- Templates marked DefaultAssetsBuilt=true may have visuals refreshed;
+-- user-authored templates without that attr only get missing structure filled.
 local ServerStorage = game:GetService("ServerStorage")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
 local worldConfigModule = ReplicatedStorage:WaitForChild("WorldConfig", 10)
 local WorldConfig = worldConfigModule and require(worldConfigModule) or {}
 
+local tycoonConfigModule = ReplicatedStorage:FindFirstChild("TycoonConfig")
+local TycoonConfig = tycoonConfigModule and require(tycoonConfigModule) or nil
+
 local DefaultAssets = {}
 
 local MARKER = "_AutoDefault"
+local BUILT_ATTR = "DefaultAssetsBuilt"
+
+-- Fallback purchase prices if TycoonConfig is unavailable (match TycoonConfig.Purchases)
+local FALLBACK_COSTS = {
+	Cell2 = 50,
+	Cell3 = 150,
+	Cell4 = 400,
+	Kitchen = 1000,
+}
+
+local function purchaseCost(purchaseId)
+	if TycoonConfig and TycoonConfig.Purchases and TycoonConfig.Purchases[purchaseId] then
+		return TycoonConfig.Purchases[purchaseId].Cost
+	end
+	return FALLBACK_COSTS[purchaseId] or 0
+end
 
 local function mark(inst)
 	inst:SetAttribute(MARKER, true)
 	return inst
+end
+
+local function markBuilt(inst)
+	inst:SetAttribute(BUILT_ATTR, true)
+	mark(inst)
+	return inst
+end
+
+local function isDefaultBuilt(inst)
+	return inst ~= nil and inst:GetAttribute(BUILT_ATTR) == true
 end
 
 local function ensureFolder(parent, name)
@@ -38,6 +69,9 @@ local function makePart(props)
 	if props.Color then
 		p.Color = props.Color
 	end
+	if props.CanTouch ~= nil then
+		p.CanTouch = props.CanTouch
+	end
 	if props.Parent then
 		p.Parent = props.Parent
 	end
@@ -45,9 +79,35 @@ local function makePart(props)
 	return p
 end
 
-local function ensureNamedPart(parent, name, props)
+local function ensureNamedPart(parent, name, props, refreshVisuals)
 	local existing = parent:FindFirstChild(name)
 	if existing and existing:IsA("BasePart") then
+		if refreshVisuals then
+			if props.Size then
+				existing.Size = props.Size
+			end
+			if props.Color then
+				existing.Color = props.Color
+			end
+			if props.Material then
+				existing.Material = props.Material
+			end
+			if props.Transparency ~= nil then
+				existing.Transparency = props.Transparency
+			end
+			if props.CanCollide ~= nil then
+				existing.CanCollide = props.CanCollide
+			end
+			if props.CanTouch ~= nil then
+				existing.CanTouch = props.CanTouch
+			end
+			if props.Anchored ~= nil then
+				existing.Anchored = props.Anchored
+			end
+			if props.CFrame then
+				existing.CFrame = props.CFrame
+			end
+		end
 		return existing
 	end
 	if existing then
@@ -59,7 +119,144 @@ local function ensureNamedPart(parent, name, props)
 	return makePart(merged)
 end
 
-local function ensureUnlockCell(unlocks, name, offset)
+local function ensureBillboardLabel(adornee, guiName, text, studsOffset, textSize)
+	local gui = adornee:FindFirstChild(guiName)
+	if not gui then
+		gui = Instance.new("BillboardGui")
+		gui.Name = guiName
+		gui.AlwaysOnTop = true
+		gui.Size = UDim2.new(0, 160, 0, 40)
+		gui.StudsOffset = studsOffset or Vector3.new(0, 2.5, 0)
+		gui.MaxDistance = 80
+		gui.Parent = adornee
+		mark(gui)
+	end
+	local label = gui:FindFirstChild("Label")
+	if not label then
+		label = Instance.new("TextLabel")
+		label.Name = "Label"
+		label.Size = UDim2.new(1, 0, 1, 0)
+		label.BackgroundTransparency = 1
+		label.TextColor3 = Color3.new(1, 1, 1)
+		label.TextStrokeTransparency = 0.4
+		label.Font = Enum.Font.GothamBold
+		label.TextScaled = false
+		label.TextSize = textSize or 18
+		label.Parent = gui
+		mark(label)
+	end
+	label.Text = text
+	return gui, label
+end
+
+local function ensureButtonCostGui(btn, purchaseId)
+	local cost = purchaseCost(purchaseId)
+	local text = "$" .. tostring(cost) .. " - " .. purchaseId
+	local gui = btn:FindFirstChild("CostGui")
+	if not gui then
+		gui = Instance.new("SurfaceGui")
+		gui.Name = "CostGui"
+		gui.Face = Enum.NormalId.Top
+		gui.SizingMode = Enum.SurfaceGuiSizingMode.PixelsPerStud
+		gui.PixelsPerStud = 50
+		gui.Parent = btn
+		mark(gui)
+	end
+	local label = gui:FindFirstChild("Label")
+	if not label then
+		label = Instance.new("TextLabel")
+		label.Name = "Label"
+		label.Size = UDim2.new(1, 0, 1, 0)
+		label.BackgroundTransparency = 1
+		label.TextColor3 = Color3.new(0, 0, 0)
+		label.Font = Enum.Font.GothamBold
+		label.TextScaled = true
+		label.Parent = gui
+		mark(label)
+	end
+	label.Text = text
+	-- Also a Billboard for readability from the side
+	ensureBillboardLabel(btn, "CostBillboard", text, Vector3.new(0, 2, 0), 16)
+end
+
+local function ensureWeld(part0, part1, name)
+	local existing = part0:FindFirstChild(name or "Weld")
+	if existing and existing:IsA("WeldConstraint") then
+		existing.Part0 = part0
+		existing.Part1 = part1
+		return existing
+	end
+	if existing then
+		existing:Destroy()
+	end
+	local w = Instance.new("WeldConstraint")
+	w.Name = name or "Weld"
+	w.Part0 = part0
+	w.Part1 = part1
+	w.Parent = part0
+	mark(w)
+	return w
+end
+
+local function ensureCellBars(cell, floor, refreshVisuals)
+	local bars = cell:FindFirstChild("Bars")
+	if not bars then
+		bars = Instance.new("Model")
+		bars.Name = "Bars"
+		bars.Parent = cell
+		mark(bars)
+	end
+	local baseCf = floor.CFrame
+	-- Front face bars (simple vertical columns)
+	for i = 1, 5 do
+		local x = -3 + (i - 1) * 1.5
+		local barName = "Bar" .. tostring(i)
+		ensureNamedPart(bars, barName, {
+			Size = Vector3.new(0.3, 6, 0.3),
+			CFrame = baseCf * CFrame.new(x, 3.5, 4),
+			Color = Color3.fromRGB(40, 40, 50),
+			Material = Enum.Material.Metal,
+			CanCollide = true,
+			Anchored = true,
+		}, refreshVisuals)
+	end
+	-- Top crossbar
+	ensureNamedPart(bars, "Crossbar", {
+		Size = Vector3.new(8, 0.3, 0.3),
+		CFrame = baseCf * CFrame.new(0, 6.5, 4),
+		Color = Color3.fromRGB(40, 40, 50),
+		Material = Enum.Material.Metal,
+		CanCollide = true,
+		Anchored = true,
+	}, refreshVisuals)
+	-- Side walls of cell
+	ensureNamedPart(bars, "WallL", {
+		Size = Vector3.new(0.5, 6, 8),
+		CFrame = baseCf * CFrame.new(-4, 3.5, 0),
+		Color = Color3.fromRGB(70, 70, 80),
+		Material = Enum.Material.Concrete,
+		CanCollide = true,
+		Anchored = true,
+	}, refreshVisuals)
+	ensureNamedPart(bars, "WallR", {
+		Size = Vector3.new(0.5, 6, 8),
+		CFrame = baseCf * CFrame.new(4, 3.5, 0),
+		Color = Color3.fromRGB(70, 70, 80),
+		Material = Enum.Material.Concrete,
+		CanCollide = true,
+		Anchored = true,
+	}, refreshVisuals)
+	ensureNamedPart(bars, "WallBack", {
+		Size = Vector3.new(8, 6, 0.5),
+		CFrame = baseCf * CFrame.new(0, 3.5, -4),
+		Color = Color3.fromRGB(70, 70, 80),
+		Material = Enum.Material.Concrete,
+		CanCollide = true,
+		Anchored = true,
+	}, refreshVisuals)
+end
+
+local function ensureUnlockCell(unlocks, name, offset, refreshVisuals, withBars)
 	local cell = unlocks:FindFirstChild(name)
 	if not cell then
 		cell = Instance.new("Model")
@@ -68,96 +265,122 @@ local function ensureUnlockCell(unlocks, name, offset)
 		mark(cell)
 	end
 
-	local floor = cell:FindFirstChild("Floor")
-	if not floor or not floor:IsA("BasePart") then
-		if floor then
-			floor:Destroy()
-		end
-		floor = makePart({
-			Name = "Floor",
-			Size = Vector3.new(8, 1, 8),
-			CFrame = CFrame.new(offset),
-			Color = Color3.fromRGB(90, 90, 110),
-			Parent = cell,
-		})
-	end
+	local floor = ensureNamedPart(cell, "Floor", {
+		Size = Vector3.new(8, 1, 8),
+		CFrame = CFrame.new(offset),
+		Color = Color3.fromRGB(100, 100, 105),
+		Material = Enum.Material.Concrete,
+		Parent = cell,
+	}, refreshVisuals)
 	if cell:IsA("Model") then
 		cell.PrimaryPart = floor
 	end
 
-	local deposit = cell:FindFirstChild("Deposit", true)
-	if not deposit or not deposit:IsA("BasePart") then
-		if deposit then
-			deposit:Destroy()
-		end
-		deposit = makePart({
-			Name = "Deposit",
-			Size = Vector3.new(6, 2, 6),
-			CFrame = CFrame.new(offset + Vector3.new(0, 1.5, 0)),
-			Transparency = 1,
-			CanCollide = false,
-			Anchored = true,
-			Color = Color3.fromRGB(0, 255, 100),
-			Parent = cell,
-		})
-		deposit.CanTouch = true
-	else
-		deposit.CanCollide = false
-		deposit.CanTouch = true
-		if deposit.Transparency < 1 then
-			deposit.Transparency = 1
-		end
+	-- Deposit: invisible sensor filling the cell floor
+	local deposit = ensureNamedPart(cell, "Deposit", {
+		Size = Vector3.new(7.5, 2, 7.5),
+		CFrame = CFrame.new(offset + Vector3.new(0, 1.5, 0)),
+		Transparency = 1,
+		CanCollide = false,
+		CanTouch = true,
+		Anchored = true,
+		Color = Color3.fromRGB(0, 255, 100),
+		Parent = cell,
+	}, refreshVisuals)
+	deposit.CanCollide = false
+	deposit.CanTouch = true
+	if deposit.Transparency < 1 then
+		deposit.Transparency = 1
+	end
+
+	-- Bars aesthetic only when refreshing DefaultAssets-built templates
+	if withBars and refreshVisuals then
+		ensureCellBars(cell, floor, true)
 	end
 
 	return cell
 end
 
-local function ensurePurchaseButton(buttons, name, purchaseId, offset, color)
-	local btn = buttons:FindFirstChild(name)
-	if not btn or not btn:IsA("BasePart") then
-		if btn then
-			btn:Destroy()
-		end
-		btn = makePart({
-			Name = name,
-			Size = Vector3.new(4, 1, 4),
-			CFrame = CFrame.new(offset),
-			CanCollide = false,
-			Color = color,
-			Parent = buttons,
-		})
-	end
+local function ensurePurchaseButton(buttons, name, purchaseId, offset, color, refreshVisuals)
+	local btn = ensureNamedPart(buttons, name, {
+		Size = Vector3.new(4, 1, 4),
+		CFrame = CFrame.new(offset),
+		CanCollide = false,
+		Color = color,
+		Material = Enum.Material.Neon,
+		Parent = buttons,
+	}, refreshVisuals)
 	if btn:GetAttribute("PurchaseId") == nil then
 		btn:SetAttribute("PurchaseId", purchaseId)
+	end
+	if refreshVisuals or not btn:FindFirstChild("CostGui") then
+		ensureButtonCostGui(btn, purchaseId)
 	end
 	return btn
 end
 
-local function ensureDropper(droppers, name, requiresUnlock, aimUnlock, offset)
-	local dropper = droppers:FindFirstChild(name)
-	if not dropper or not dropper:IsA("BasePart") then
-		if dropper then
-			dropper:Destroy()
-		end
-		dropper = makePart({
-			Name = name,
-			Size = Vector3.new(2, 2, 2),
-			CFrame = CFrame.new(offset),
-			CanCollide = false,
-			Color = Color3.fromRGB(200, 120, 40),
-			Parent = droppers,
-		})
-	end
+local function ensureDropper(droppers, name, requiresUnlock, aimUnlock, offset, refreshVisuals)
+	local dropper = ensureNamedPart(droppers, name, {
+		Size = Vector3.new(3, 1.5, 3),
+		CFrame = CFrame.new(offset),
+		CanCollide = false,
+		Color = Color3.fromRGB(255, 140, 40),
+		Material = Enum.Material.Neon,
+		Parent = droppers,
+	}, refreshVisuals)
 	if dropper:GetAttribute("RequiresUnlock") == nil then
 		dropper:SetAttribute("RequiresUnlock", requiresUnlock)
 	end
 	if aimUnlock and dropper:GetAttribute("AimUnlock") == nil then
 		dropper:SetAttribute("AimUnlock", aimUnlock)
 	end
+	if refreshVisuals or not dropper:FindFirstChild("IntakeLabel") then
+		ensureBillboardLabel(dropper, "IntakeLabel", "Intake: " .. requiresUnlock, Vector3.new(0, 2, 0), 14)
+	end
 	return dropper
 end
 
-function DefaultAssets.ensurePadParts(tycoon)
+-- Claim pad + optional ClaimedBy billboard (Assigner updates ownership text).
+function DefaultAssets.ensureClaimBillboard(tycoon)
+	if not tycoon then
+		return nil
+	end
+	local claim = tycoon:FindFirstChild("ClaimPad", true)
+	if not (claim and claim:IsA("BasePart")) then
+		return nil
+	end
+	ensureBillboardLabel(claim, "ClaimBillboard", "Claim Prison", Vector3.new(0, 3, 0), 20)
+	local _, claimedLabel = ensureBillboardLabel(claim, "ClaimedByBillboard", "", Vector3.new(0, 4.5, 0), 16)
+	claimedLabel.TextColor3 = Color3.fromRGB(200, 255, 200)
+	return claim
+end
+
+function DefaultAssets.setClaimedByDisplay(tycoon, displayName)
+	local claim = DefaultAssets.ensureClaimBillboard(tycoon)
+	if not claim then
+		return
+	end
+	local gui = claim:FindFirstChild("ClaimedByBillboard")
+	local label = gui and gui:FindFirstChild("Label")
+	if label then
+		if displayName and displayName ~= "" then
+			label.Text = "Claimed by " .. tostring(displayName)
+		else
+			label.Text = ""
+		end
+	end
+	local claimGui = claim:FindFirstChild("ClaimBillboard")
+	local claimLabel = claimGui and claimGui:FindFirstChild("Label")
+	if claimLabel then
+		if displayName and displayName ~= "" then
+			claimLabel.Text = ""
+		else
+			claimLabel.Text = "Claim Prison"
+		end
+	end
+end
+
+function DefaultAssets.ensurePadParts(tycoon, refreshVisuals)
 	if not tycoon then
 		return
 	end
@@ -184,13 +407,20 @@ function DefaultAssets.ensurePadParts(tycoon)
 			Size = Vector3.new(3, 1, 3),
 			CFrame = CFrame.new(14, 1, 0),
 			CanCollide = false,
-			Transparency = 0.4,
+			Transparency = 0.5,
 			Color = Color3.fromRGB(40, 80, 200),
-		})
+			Material = Enum.Material.Neon,
+		}, refreshVisuals)
+		local gs = tycoon:FindFirstChild("GuardSpawn")
+		if gs and gs:IsA("BasePart") then
+			ensureBillboardLabel(gs, "HelperLabel", "GuardSpawn", Vector3.new(0, 2, 0), 12)
+		end
+	elseif refreshVisuals and guard and guard:IsA("BasePart") then
+		guard.Transparency = 0.5
 	end
+
 	local escape = tycoon:FindFirstChild("EscapePoint", true)
 	if not (escape and escape:IsA("BasePart")) then
-		-- Also accept EscapePoints folder with at least one BasePart
 		local folder = tycoon:FindFirstChild("EscapePoints")
 		local hasFolderPoint = false
 		if folder then
@@ -206,16 +436,62 @@ function DefaultAssets.ensurePadParts(tycoon)
 				Size = Vector3.new(3, 1, 3),
 				CFrame = CFrame.new(0, 1, -18),
 				CanCollide = false,
-				Transparency = 0.4,
+				Transparency = 0.5,
 				Color = Color3.fromRGB(200, 40, 40),
-			})
+				Material = Enum.Material.Neon,
+			}, refreshVisuals)
+			local ep = tycoon:FindFirstChild("EscapePoint")
+			if ep and ep:IsA("BasePart") then
+				ensureBillboardLabel(ep, "HelperLabel", "EscapePoint", Vector3.new(0, 2, 0), 12)
+			end
 		end
+	elseif refreshVisuals and escape and escape:IsA("BasePart") then
+		escape.Transparency = 0.5
+	end
+end
+
+local function ensurePrisonSilhouette(model, refreshVisuals)
+	local structure = model:FindFirstChild("Structure")
+	if not structure then
+		structure = Instance.new("Folder")
+		structure.Name = "Structure"
+		structure.Parent = model
+		mark(structure)
+	end
+
+	-- Outer outline walls (office → hallway → cell silhouette)
+	local walls = {
+		{ Name = "OuterN", Size = Vector3.new(42, 8, 1), CFrame = CFrame.new(0, 4, -21), Color = Color3.fromRGB(55, 55, 60) },
+		{ Name = "OuterS", Size = Vector3.new(42, 8, 1), CFrame = CFrame.new(0, 4, 21), Color = Color3.fromRGB(55, 55, 60) },
+		{ Name = "OuterE", Size = Vector3.new(1, 8, 42), CFrame = CFrame.new(21, 4, 0), Color = Color3.fromRGB(55, 55, 60) },
+		{ Name = "OuterW", Size = Vector3.new(1, 8, 42), CFrame = CFrame.new(-21, 4, 0), Color = Color3.fromRGB(55, 55, 60) },
+		-- Office partition (claim end / south)
+		{ Name = "OfficeWallL", Size = Vector3.new(1, 6, 10), CFrame = CFrame.new(-6, 3, 14), Color = Color3.fromRGB(65, 65, 72) },
+		{ Name = "OfficeWallR", Size = Vector3.new(1, 6, 10), CFrame = CFrame.new(6, 3, 14), Color = Color3.fromRGB(65, 65, 72) },
+		-- Hallway sides
+		{ Name = "HallWallL", Size = Vector3.new(1, 6, 12), CFrame = CFrame.new(-5, 3, 4), Color = Color3.fromRGB(60, 60, 68) },
+		{ Name = "HallWallR", Size = Vector3.new(1, 6, 12), CFrame = CFrame.new(5, 3, 4), Color = Color3.fromRGB(60, 60, 68) },
+		-- Cell-block divider
+		{ Name = "CellDivider", Size = Vector3.new(20, 6, 1), CFrame = CFrame.new(0, 3, -2), Color = Color3.fromRGB(50, 50, 58) },
+	}
+	for _, w in ipairs(walls) do
+		ensureNamedPart(structure, w.Name, {
+			Size = w.Size,
+			CFrame = w.CFrame,
+			Color = w.Color,
+			Material = Enum.Material.Concrete,
+			CanCollide = true,
+			Anchored = true,
+		}, refreshVisuals)
 	end
 end
 
 function DefaultAssets.ensureInmateTemplate()
 	local existing = ServerStorage:FindFirstChild("InmateTemplate")
-	if existing then
+	local refresh = existing ~= nil and isDefaultBuilt(existing)
+
+	if existing and not refresh then
+		-- User-authored: only ensure PrimaryPart, never restyle
 		if existing:IsA("Model") and not existing.PrimaryPart then
 			local part = existing:FindFirstChildWhichIsA("BasePart", true)
 			if part then
@@ -225,28 +501,44 @@ function DefaultAssets.ensureInmateTemplate()
 		return existing
 	end
 
-	local model = Instance.new("Model")
-	model.Name = "InmateTemplate"
-	mark(model)
+	local model = existing
+	if not model then
+		model = Instance.new("Model")
+		model.Name = "InmateTemplate"
+		markBuilt(model)
+	end
 
-	local body = makePart({
-		Name = "Body",
+	-- Orange jumpsuit body + darker head; unanchored for physics
+	local body = ensureNamedPart(model, "Body", {
 		Size = Vector3.new(2, 2, 1),
 		CFrame = CFrame.new(0, 1, 0),
 		Anchored = false,
 		CanCollide = true,
-		Color = Color3.fromRGB(255, 170, 0),
-		Parent = model,
-	})
+		Color = Color3.fromRGB(255, 140, 0),
+		Material = Enum.Material.SmoothPlastic,
+	}, true)
+	local head = ensureNamedPart(model, "Head", {
+		Size = Vector3.new(1.2, 1.2, 1.2),
+		CFrame = CFrame.new(0, 2.6, 0),
+		Anchored = false,
+		CanCollide = true,
+		Color = Color3.fromRGB(90, 55, 35),
+		Material = Enum.Material.SmoothPlastic,
+	}, true)
+	ensureWeld(body, head, "HeadWeld")
 	model.PrimaryPart = body
-	model.Parent = ServerStorage
-	print("[DefaultAssets] Created ServerStorage.InmateTemplate")
+	if not model.Parent then
+		model.Parent = ServerStorage
+		print("[DefaultAssets] Created ServerStorage.InmateTemplate")
+	end
 	return model
 end
 
 function DefaultAssets.ensureGuardTemplate()
 	local existing = ServerStorage:FindFirstChild("GuardTemplate")
-	if existing then
+	local refresh = existing ~= nil and isDefaultBuilt(existing)
+
+	if existing and not refresh then
 		if existing:IsA("Model") and not existing.PrimaryPart then
 			local part = existing:FindFirstChildWhichIsA("BasePart", true)
 			if part then
@@ -256,52 +548,95 @@ function DefaultAssets.ensureGuardTemplate()
 		return existing
 	end
 
-	local model = Instance.new("Model")
-	model.Name = "GuardTemplate"
-	mark(model)
+	local model = existing
+	if not model then
+		model = Instance.new("Model")
+		model.Name = "GuardTemplate"
+		markBuilt(model)
+	end
 
-	local body = makePart({
-		Name = "Body",
+	-- Blue body + black belts/vest accents; distinct from inmates
+	local body = ensureNamedPart(model, "Body", {
 		Size = Vector3.new(2, 2.5, 1),
 		CFrame = CFrame.new(0, 1.25, 0),
 		Anchored = false,
 		CanCollide = true,
-		Color = Color3.fromRGB(50, 90, 200),
-		Parent = model,
-	})
+		Color = Color3.fromRGB(30, 60, 140),
+		Material = Enum.Material.SmoothPlastic,
+	}, true)
+	local vest = ensureNamedPart(model, "Vest", {
+		Size = Vector3.new(2.2, 1.2, 1.2),
+		CFrame = CFrame.new(0, 1.5, 0),
+		Anchored = false,
+		CanCollide = false,
+		Color = Color3.fromRGB(20, 20, 25),
+		Material = Enum.Material.SmoothPlastic,
+	}, true)
+	local head = ensureNamedPart(model, "Head", {
+		Size = Vector3.new(1.2, 1.2, 1.2),
+		CFrame = CFrame.new(0, 2.9, 0),
+		Anchored = false,
+		CanCollide = true,
+		Color = Color3.fromRGB(90, 55, 35),
+		Material = Enum.Material.SmoothPlastic,
+	}, true)
+	ensureWeld(body, vest, "VestWeld")
+	ensureWeld(body, head, "HeadWeld")
 	model.PrimaryPart = body
-	model.Parent = ServerStorage
-	print("[DefaultAssets] Created ServerStorage.GuardTemplate")
+	if not model.Parent then
+		model.Parent = ServerStorage
+		print("[DefaultAssets] Created ServerStorage.GuardTemplate")
+	end
 	return model
 end
 
 -- Fill missing claim / buttons / unlocks / droppers so live scripts can run.
 -- Idempotent: never replaces Studio-authored children that already exist.
-local function ensureTycoonPlayableStructure(model)
+-- refreshVisuals=true only when DefaultAssetsBuilt (our template); otherwise structure-only.
+local function ensureTycoonPlayableStructure(model, refreshVisuals)
+	refreshVisuals = refreshVisuals == true
+
+	local floor = model:FindFirstChild("Floor")
+	if not (floor and floor:IsA("BasePart")) then
+		floor = ensureNamedPart(model, "Floor", {
+			Size = Vector3.new(40, 1, 40),
+			CFrame = CFrame.new(0, 0, 0),
+			Color = Color3.fromRGB(145, 145, 135),
+			Material = Enum.Material.Concrete,
+		}, refreshVisuals)
+	elseif refreshVisuals then
+		floor.Color = Color3.fromRGB(145, 145, 135)
+		floor.Material = Enum.Material.Concrete
+		floor.Size = Vector3.new(40, 1, 40)
+	end
 	if not model.PrimaryPart then
-		local floor = model:FindFirstChild("Floor")
-		if not (floor and floor:IsA("BasePart")) then
-			floor = ensureNamedPart(model, "Floor", {
-				Size = Vector3.new(40, 1, 40),
-				CFrame = CFrame.new(0, 0, 0),
-				Color = Color3.fromRGB(70, 70, 75),
-			})
-		end
 		model.PrimaryPart = floor
+	end
+
+	-- Silhouette walls only on DefaultAssets-built templates (never restyle user art)
+	if refreshVisuals then
+		ensurePrisonSilhouette(model, true)
 	end
 
 	local claim = model:FindFirstChild("ClaimPad", true)
 	if not (claim and claim:IsA("BasePart")) then
 		claim = ensureNamedPart(model, "ClaimPad", {
-			Size = Vector3.new(6, 1, 6),
+			Size = Vector3.new(8, 1, 8),
 			CFrame = CFrame.new(0, 1, 16),
 			CanCollide = false,
-			Color = Color3.fromRGB(80, 220, 100),
-		})
+			Color = Color3.fromRGB(40, 255, 80),
+			Material = Enum.Material.Neon,
+		}, refreshVisuals)
+	elseif refreshVisuals then
+		claim.Color = Color3.fromRGB(40, 255, 80)
+		claim.Material = Enum.Material.Neon
+		claim.Size = Vector3.new(8, 1, 8)
+		claim.CanCollide = false
 	end
 	if claim:GetAttribute("Claimable") == nil then
 		claim:SetAttribute("Claimable", true)
 	end
+	DefaultAssets.ensureClaimBillboard(model)
 
 	if not model:FindFirstChild("PlayerSpawn", true) then
 		ensureNamedPart(model, "PlayerSpawn", {
@@ -310,46 +645,46 @@ local function ensureTycoonPlayableStructure(model)
 			CanCollide = false,
 			Transparency = 0.5,
 			Color = Color3.fromRGB(180, 180, 255),
-		})
+		}, refreshVisuals)
 	end
 
 	local buttons = ensureFolder(model, "Buttons")
-	ensurePurchaseButton(buttons, "Cell2", "Cell2", Vector3.new(-8, 1, 8), Color3.fromRGB(255, 220, 60))
-	ensurePurchaseButton(buttons, "Cell3", "Cell3", Vector3.new(-12, 1, 8), Color3.fromRGB(255, 180, 60))
-	ensurePurchaseButton(buttons, "Cell4", "Cell4", Vector3.new(-16, 1, 8), Color3.fromRGB(255, 140, 60))
-	ensurePurchaseButton(buttons, "Kitchen", "Kitchen", Vector3.new(8, 1, 8), Color3.fromRGB(255, 100, 160))
+	ensurePurchaseButton(buttons, "Cell2", "Cell2", Vector3.new(-8, 1, 8), Color3.fromRGB(255, 220, 60), refreshVisuals)
+	ensurePurchaseButton(buttons, "Cell3", "Cell3", Vector3.new(-12, 1, 8), Color3.fromRGB(255, 180, 60), refreshVisuals)
+	ensurePurchaseButton(buttons, "Cell4", "Cell4", Vector3.new(-16, 1, 8), Color3.fromRGB(255, 140, 60), refreshVisuals)
+	ensurePurchaseButton(buttons, "Kitchen", "Kitchen", Vector3.new(8, 1, 8), Color3.fromRGB(255, 100, 160), refreshVisuals)
 
 	local unlocks = ensureFolder(model, "Unlocks")
-	ensureUnlockCell(unlocks, "Cell1", Vector3.new(-10, 1, -6))
-	ensureUnlockCell(unlocks, "Cell2", Vector3.new(10, 1, -6))
-	-- Stub unlock models for later purchases (Deposit included so collector can hook)
-	ensureUnlockCell(unlocks, "Cell3", Vector3.new(-10, 1, -16))
-	ensureUnlockCell(unlocks, "Cell4", Vector3.new(10, 1, -16))
-	ensureUnlockCell(unlocks, "Kitchen", Vector3.new(0, 1, -22))
+	-- Cell1 visible with bars; Cell2+ exist for Assigner to hide
+	ensureUnlockCell(unlocks, "Cell1", Vector3.new(-10, 1, -6), refreshVisuals, true)
+	ensureUnlockCell(unlocks, "Cell2", Vector3.new(10, 1, -6), refreshVisuals, false)
+	ensureUnlockCell(unlocks, "Cell3", Vector3.new(-10, 1, -16), refreshVisuals, false)
+	ensureUnlockCell(unlocks, "Cell4", Vector3.new(10, 1, -16), refreshVisuals, false)
+	ensureUnlockCell(unlocks, "Kitchen", Vector3.new(0, 1, -22), refreshVisuals, false)
 
 	local droppers = ensureFolder(model, "Droppers")
-	ensureDropper(droppers, "Intake_Cell1", "Cell1", "Cell1", Vector3.new(-10, 5, 4))
-	ensureDropper(droppers, "Intake_Cell2", "Cell2", "Cell2", Vector3.new(10, 5, 4))
+	ensureDropper(droppers, "Intake_Cell1", "Cell1", "Cell1", Vector3.new(-10, 5, 4), refreshVisuals)
+	ensureDropper(droppers, "Intake_Cell2", "Cell2", "Cell2", Vector3.new(10, 5, 4), refreshVisuals)
 
 	ensureFolder(model, "ActiveInmates")
-	DefaultAssets.ensurePadParts(model)
+	DefaultAssets.ensurePadParts(model, refreshVisuals)
 	return model
 end
 
 function DefaultAssets.ensureTycoonTemplate()
 	local existing = ServerStorage:FindFirstChild("TycoonTemplate")
 	if existing then
-		-- Enrich partial Studio templates (missing attrs/folders/pads) in place
-		ensureTycoonPlayableStructure(existing)
+		local refresh = isDefaultBuilt(existing)
+		ensureTycoonPlayableStructure(existing, refresh)
 		return existing
 	end
 
 	local model = Instance.new("Model")
 	model.Name = "TycoonTemplate"
-	mark(model)
-	ensureTycoonPlayableStructure(model)
+	markBuilt(model)
+	ensureTycoonPlayableStructure(model, true)
 	model.Parent = ServerStorage
-	print("[DefaultAssets] Created ServerStorage.TycoonTemplate (minimal playable pad)")
+	print("[DefaultAssets] Created ServerStorage.TycoonTemplate (minimal prison pad)")
 	return model
 end
 

@@ -20,6 +20,11 @@ local function ownedCount(tycoon)
 	return n
 end
 
+-- Passive income disabled when rate is 0 (collector is the main cash path).
+if (Config.IncomePerOwnedUnlock or 0) == 0 or (Config.IncomeInterval or 0) <= 0 then
+	return -- passive income disabled
+end
+
 task.spawn(function()
 	while true do
 		task.wait(Config.IncomeInterval)
