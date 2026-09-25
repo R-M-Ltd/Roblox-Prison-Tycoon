@@ -1,7 +1,8 @@
 # Studio setup checklist
 
 1. Copy each `.lua` into the matching Roblox instance type (ModuleScript vs Script).
-   - Include `ReplicatedStorage/DefaultAssets` (ModuleScript) and `ServerScriptService/00_DefaultAssetsBootstrap` (Script).
+   - Include `ReplicatedStorage/WardenLayout` + `DefaultAssets` (ModuleScripts) and `ServerScriptService/00_DefaultAssetsBootstrap` (Script).
+   - See **WARDEN_LAYOUT.md** for what the pad builder creates.
    - Name the bootstrap Script so it sorts early (`00_DefaultAssetsBootstrap`); it must run before Assigner if possible. Assigner/Dropper also call `DefaultAssets` defensively.
 2. **Optional but recommended:** build polished `TycoonTemplate` / `InmateTemplate` in ServerStorage and place `TycoonSpawns`. If missing, `DefaultAssets` auto-creates playable Part-based defaults at runtime.
 3. On a custom `TycoonTemplate`, set a PrimaryPart.

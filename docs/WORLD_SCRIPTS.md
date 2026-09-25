@@ -8,7 +8,8 @@ Additive facility simulation on top of the existing tycoon purchase / deposit / 
 | Instance | Type | Location | Role |
 |----------|------|----------|------|
 | `WorldConfig` | ModuleScript | ReplicatedStorage | Tunables (day length, zones, lockdown, escape, staff, AI) |
-| `DefaultAssets` | ModuleScript | ReplicatedStorage | Idempotent auto-create for missing templates / spawns / zones |
+| `WardenLayout` | ModuleScript | ReplicatedStorage | Pad silhouette builder (office→intake→corridor→cells+walls) |
+| `DefaultAssets` | ModuleScript | ReplicatedStorage | Idempotent auto-create; calls WardenLayout for TycoonTemplate |
 | `00_DefaultAssetsBootstrap` | Script | ServerScriptService | Calls `DefaultAssets.ensureAll()` first (name sorts early) |
 | `WorldBootstrap` | Script | ServerScriptService | Start order; creates `Workspace.WorldState` + remotes folder; calls `ensureWorld()` |
 | `FacilityClock` | ModuleScript | ServerScriptService | Day-night attributes on `WorldState`; optional `Lighting` writes |
@@ -55,7 +56,7 @@ Additive facility simulation on top of the existing tycoon purchase / deposit / 
 Copy each `.lua` into the matching Studio instance type (ModuleScript vs Script). Keep existing tycoon scripts.
 
 ### Required for basic clock / remotes
-1. Add `WorldConfig` + `DefaultAssets` ModuleScripts under ReplicatedStorage.
+1. Add `WorldConfig` + `WardenLayout` + `DefaultAssets` ModuleScripts under ReplicatedStorage.
 2. Add Script `00_DefaultAssetsBootstrap` under ServerScriptService (ensure defaults before Assigner).
 3. Add these ModuleScripts under ServerScriptService: `FacilityClock`, `WorldZones`, `SecurityWorld`, `InmateWorldAI`, `StaffSpawner`, `EscapeAttempt`, `WorldRemotes`.
 4. Add Script `WorldBootstrap` under ServerScriptService (runs the start order; calls `DefaultAssets.ensureWorld()`).
@@ -102,10 +103,12 @@ Edit `ReplicatedStorage.WorldConfig`:
 ## Default assets (bare place)
 
 `DefaultAssets.ensureAll()` (idempotent) creates when missing:
-- `ServerStorage.InmateTemplate`, `GuardTemplate`, `TycoonTemplate` (minimal playable pad)
+- `ServerStorage.InmateTemplate`, `GuardTemplate`, `TycoonTemplate` (full WardenLayout pad)
 - `Workspace.TycoonSpawns` (≥2 spawn Parts)
 - `Workspace.WorldZones` Parts for each `WorldConfig.ZoneNames` entry
-- Per-pad `GuardSpawn` + `EscapePoint` via `ensurePadParts`
+- Per-pad `GuardSpawn` + `EscapePoint` via `WardenLayout` / `ensurePadParts`
+
+See **WARDEN_LAYOUT.md** for the office→intake→corridor→cell silhouette and collider rules.
 
 Studio-authored assets are still recommended for polish; existing named instances are never duplicated.
 
