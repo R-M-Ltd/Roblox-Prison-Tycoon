@@ -207,7 +207,8 @@ local function ensureCellBars(cell, floor, refreshVisuals)
 		mark(bars)
 	end
 	local baseCf = floor.CFrame
-	-- Front face bars (simple vertical columns)
+	-- Aesthetic only (CanCollide false): solid bars blocked Intake→Deposit
+	-- for Cell1, which is the StartingCash=0 bootstrap income path.
 	for i = 1, 5 do
 		local x = -3 + (i - 1) * 1.5
 		local barName = "Bar" .. tostring(i)
@@ -216,7 +217,7 @@ local function ensureCellBars(cell, floor, refreshVisuals)
 			CFrame = baseCf * CFrame.new(x, 3.5, 4),
 			Color = Color3.fromRGB(40, 40, 50),
 			Material = Enum.Material.Metal,
-			CanCollide = true,
+			CanCollide = false,
 			Anchored = true,
 		}, refreshVisuals)
 	end
@@ -226,7 +227,7 @@ local function ensureCellBars(cell, floor, refreshVisuals)
 		CFrame = baseCf * CFrame.new(0, 6.5, 4),
 		Color = Color3.fromRGB(40, 40, 50),
 		Material = Enum.Material.Metal,
-		CanCollide = true,
+		CanCollide = false,
 		Anchored = true,
 	}, refreshVisuals)
 	-- Side walls of cell
@@ -235,7 +236,7 @@ local function ensureCellBars(cell, floor, refreshVisuals)
 		CFrame = baseCf * CFrame.new(-4, 3.5, 0),
 		Color = Color3.fromRGB(70, 70, 80),
 		Material = Enum.Material.Concrete,
-		CanCollide = true,
+		CanCollide = false,
 		Anchored = true,
 	}, refreshVisuals)
 	ensureNamedPart(bars, "WallR", {
@@ -243,7 +244,7 @@ local function ensureCellBars(cell, floor, refreshVisuals)
 		CFrame = baseCf * CFrame.new(4, 3.5, 0),
 		Color = Color3.fromRGB(70, 70, 80),
 		Material = Enum.Material.Concrete,
-		CanCollide = true,
+		CanCollide = false,
 		Anchored = true,
 	}, refreshVisuals)
 	ensureNamedPart(bars, "WallBack", {
@@ -251,7 +252,7 @@ local function ensureCellBars(cell, floor, refreshVisuals)
 		CFrame = baseCf * CFrame.new(0, 3.5, -4),
 		Color = Color3.fromRGB(70, 70, 80),
 		Material = Enum.Material.Concrete,
-		CanCollide = true,
+		CanCollide = false,
 		Anchored = true,
 	}, refreshVisuals)
 end
@@ -475,12 +476,13 @@ local function ensurePrisonSilhouette(model, refreshVisuals)
 		{ Name = "CellDivider", Size = Vector3.new(20, 6, 1), CFrame = CFrame.new(0, 3, -2), Color = Color3.fromRGB(50, 50, 58) },
 	}
 	for _, w in ipairs(walls) do
+		-- Visual silhouette only — CellDivider sat on Intake_Cell1→Deposit path
 		ensureNamedPart(structure, w.Name, {
 			Size = w.Size,
 			CFrame = w.CFrame,
 			Color = w.Color,
 			Material = Enum.Material.Concrete,
-			CanCollide = true,
+			CanCollide = false,
 			Anchored = true,
 		}, refreshVisuals)
 	end
